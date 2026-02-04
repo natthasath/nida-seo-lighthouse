@@ -1,0 +1,485 @@
+# .github/workflows/lighthouse-weekly.yml
+name: Weekly Lighthouse Report
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # ทุกวันจันทร์ เวลา 02:00 UTC (09:00 ICT)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Dependencies
+        run: |
+          npm install -g lighthouse
+          npm install -g @lhci/cli@0.13.x
+          
+      - name: Create report directories
+        run: |
+          mkdir -p report/mobile
+          mkdir -p report/desktop
+          
+      - name: Run Lighthouse for Mobile and Desktop
+        run: |
+          REPORT_DATE=$(date +'%Y-%m-%d')
+          
+          echo "🔄 Running Mobile Lighthouse test..."
+          lighthouse https://nida.ac.th \
+            --output=html \
+            --output-path="report/mobile/${REPORT_DATE}_lighthouse-report.html" \
+            --chrome-flags="--headless --no-sandbox --disable-gpu" \
+            --throttling-method=simulate \
+            --only-categories=performance,accessibility,best-practices,seo,pwa
+          
+          echo "✅ Mobile report generated"
+          ls -lh "report/mobile/${REPORT_DATE}_lighthouse-report.html"
+          
+          echo "🔄 Running Desktop Lighthouse test..."
+          lighthouse https://nida.ac.th \
+            --output=html \
+            --output-path="report/desktop/${REPORT_DATE}_lighthouse-report.html" \
+            --preset=desktop \
+            --chrome-flags="--headless --no-sandbox --disable-gpu" \
+            --only-categories=performance,accessibility,best-practices,seo,pwa
+          
+          echo "✅ Desktop report generated"
+          ls -lh "report/desktop/${REPORT_DATE}_lighthouse-report.html"
+          
+      - name: Generate Reports Metadata
+        run: |
+          echo "{" > reports.json
+          echo "  \"mobile\": [" >> reports.json
+          
+          # Scan Mobile reports
+          first=true
+          for file in report/mobile/*_lighthouse-report.html; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              date=$(echo "$filename" | grep -oP '\d{4}-\d{2}-\d{2}')
+              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+              size_kb=$((size / 1024))
+              
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo "," >> reports.json
+              fi
+              
+              echo "    {" >> reports.json
+              echo "      \"filename\": \"$filename\"," >> reports.json
+              echo "      \"date\": \"$date\"," >> reports.json
+              echo "      \"url\": \"nida.ac.th\"," >> reports.json
+              echo "      \"size\": \"$size_kb KB\"" >> reports.json
+              echo "    }" >> reports.json
+            fi
+          done
+          
+          echo "  ]," >> reports.json
+          echo "  \"desktop\": [" >> reports.json
+          
+          # Scan Desktop reports
+          first=true
+          for file in report/desktop/*_lighthouse-report.html; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              date=$(echo "$filename" | grep -oP '\d{4}-\d{2}-\d{2}')
+              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+              size_kb=$((size / 1024))
+              
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo "," >> reports.json
+              fi
+              
+              echo "    {" >> reports.json
+              echo "      \"filename\": \"$filename\"," >> reports.json
+              echo "      \"date\": \"$date\"," >> reports.json
+              echo "      \"url\": \"nida.ac.th\"," >> reports.json
+              echo "      \"size\": \"$size_kb KB\"" >> reports.json
+              echo "    }" >> reports.json
+            fi
+          done
+          
+          echo "  ]" >> reports.json
+          echo "}" >> reports.json
+          
+          echo "✅ Reports metadata created"
+          cat reports.json
+          
+      - name: Generate Static Index Page
+        run: |
+          # อ่านข้อมูลจาก reports.json
+          REPORTS_DATA=$(cat reports.json)
+          
+          # นับจำนวนรายงาน
+          MOBILE_COUNT=$(echo "$REPORTS_DATA" | jq '.mobile | length')
+          DESKTOP_COUNT=$(echo "$REPORTS_DATA" | jq '.desktop | length')
+          TOTAL_REPORTS=$((MOBILE_COUNT + DESKTOP_COUNT))
+          
+          # หา date ล่าสุด
+          LATEST_DATE=$(echo "$REPORTS_DATA" | jq -r '.mobile[0].date // .desktop[0].date // "-"')
+          
+          # หา date แรกสุด
+          FIRST_DATE_MOBILE=$(echo "$REPORTS_DATA" | jq -r '.mobile[-1].date // "-"')
+          FIRST_DATE_DESKTOP=$(echo "$REPORTS_DATA" | jq -r '.desktop[-1].date // "-"')
+          FIRST_DATE="${FIRST_DATE_MOBILE}"
+          if [ "$FIRST_DATE_DESKTOP" != "-" ]; then
+            FIRST_DATE="$FIRST_DATE_DESKTOP"
+          fi
+          
+          # สร้างตาราง HTML สำหรับ Mobile
+          MOBILE_ROWS=""
+          while IFS= read -r report; do
+            filename=$(echo "$report" | jq -r '.filename')
+            date=$(echo "$report" | jq -r '.date')
+            url=$(echo "$report" | jq -r '.url')
+            size=$(echo "$report" | jq -r '.size')
+            
+            # Format date
+            formatted_date=$(date -d "$date" "+%b %d, %Y" 2>/dev/null || date -j -f "%Y-%m-%d" "$date" "+%b %d, %Y" 2>/dev/null || echo "$date")
+            
+            MOBILE_ROWS+="<tr>"
+            MOBILE_ROWS+="<td><strong>$formatted_date</strong></td>"
+            MOBILE_ROWS+="<td>$url</td>"
+            MOBILE_ROWS+="<td><span class=\"badge mobile\">📱 Mobile</span></td>"
+            MOBILE_ROWS+="<td>$size</td>"
+            MOBILE_ROWS+="<td><a href=\"report/mobile/$filename\" class=\"view-btn\" target=\"_blank\">View Report →</a></td>"
+            MOBILE_ROWS+="</tr>"
+          done < <(echo "$REPORTS_DATA" | jq -c '.mobile[]')
+          
+          # สร้างตาราง HTML สำหรับ Desktop
+          DESKTOP_ROWS=""
+          while IFS= read -r report; do
+            filename=$(echo "$report" | jq -r '.filename')
+            date=$(echo "$report" | jq -r '.date')
+            url=$(echo "$report" | jq -r '.url')
+            size=$(echo "$report" | jq -r '.size')
+            
+            # Format date
+            formatted_date=$(date -d "$date" "+%b %d, %Y" 2>/dev/null || date -j -f "%Y-%m-%d" "$date" "+%b %d, %Y" 2>/dev/null || echo "$date")
+            
+            DESKTOP_ROWS+="<tr>"
+            DESKTOP_ROWS+="<td><strong>$formatted_date</strong></td>"
+            DESKTOP_ROWS+="<td>$url</td>"
+            DESKTOP_ROWS+="<td><span class=\"badge desktop\">💻 Desktop</span></td>"
+            DESKTOP_ROWS+="<td>$size</td>"
+            DESKTOP_ROWS+="<td><a href=\"report/desktop/$filename\" class=\"view-btn\" target=\"_blank\">View Report →</a></td>"
+            DESKTOP_ROWS+="</tr>"
+          done < <(echo "$REPORTS_DATA" | jq -c '.desktop[]')
+          
+          # Combine rows
+          ALL_ROWS="${MOBILE_ROWS}${DESKTOP_ROWS}"
+          
+          # ถ้าไม่มีรายงาน
+          if [ -z "$ALL_ROWS" ]; then
+            ALL_ROWS='<tr><td colspan="5" class="no-reports">No reports available yet. Reports will be generated weekly.</td></tr>'
+          fi
+          
+          # สร้าง index.html
+          cat > index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Lighthouse Reports - NIDA.AC.TH</title>
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 40px 20px;
+              }
+              .container {
+                max-width: 1400px;
+                margin: 0 auto;
+              }
+              h1 {
+                color: white;
+                text-align: center;
+                margin-bottom: 20px;
+                font-size: 2.5em;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+              }
+              h2 {
+                color: rgba(255,255,255,0.9);
+                text-align: center;
+                margin-bottom: 40px;
+                font-weight: 300;
+                font-size: 1.2em;
+              }
+              .stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+              }
+              .stat-card {
+                background: rgba(255,255,255,0.95);
+                border-radius: 12px;
+                padding: 24px;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              }
+              .stat-number {
+                font-size: 2.5em;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 8px;
+              }
+              .stat-label {
+                color: #666;
+                font-size: 0.9em;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
+              .filter-tabs {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+                flex-wrap: wrap;
+              }
+              .filter-btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 8px;
+                background: #f0f0f0;
+                color: #333;
+                font-size: 0.9em;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s;
+              }
+              .filter-btn.active {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+              }
+              .filter-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              }
+              .reports-table {
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              thead {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+              }
+              th, td {
+                padding: 16px;
+                text-align: left;
+              }
+              th {
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 0.85em;
+                letter-spacing: 0.5px;
+              }
+              tbody tr {
+                transition: all 0.2s;
+              }
+              tbody tr:nth-child(even) {
+                background: #f8f9fa;
+              }
+              tbody tr:hover {
+                background: #e9ecef;
+              }
+              tbody tr.hidden {
+                display: none;
+              }
+              .badge {
+                display: inline-block;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 0.85em;
+                font-weight: 600;
+              }
+              .badge.mobile {
+                background: #e3f2fd;
+                color: #1976d2;
+              }
+              .badge.desktop {
+                background: #f3e5f5;
+                color: #7b1fa2;
+              }
+              .view-btn {
+                display: inline-block;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-size: 0.9em;
+                font-weight: 600;
+                transition: opacity 0.3s;
+              }
+              .view-btn:hover {
+                opacity: 0.9;
+              }
+              .no-reports {
+                text-align: center;
+                padding: 40px;
+                color: #666;
+              }
+              .last-updated {
+                text-align: center;
+                color: rgba(255,255,255,0.8);
+                margin-top: 30px;
+                font-size: 0.9em;
+              }
+              @media (max-width: 768px) {
+                h1 { font-size: 1.8em; }
+                .stats { grid-template-columns: 1fr; }
+                table { font-size: 0.9em; }
+                th, td { padding: 12px 8px; }
+                .filter-tabs { padding: 15px; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>📊 Lighthouse Performance Reports</h1>
+              <h2>NIDA.AC.TH - Weekly Monitoring</h2>
+              
+              <div class="stats">
+                <div class="stat-card">
+                  <div class="stat-number">TOTAL_REPORTS_PLACEHOLDER</div>
+                  <div class="stat-label">Total Reports</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">MOBILE_COUNT_PLACEHOLDER</div>
+                  <div class="stat-label">Mobile Reports</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">DESKTOP_COUNT_PLACEHOLDER</div>
+                  <div class="stat-label">Desktop Reports</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">LATEST_DATE_PLACEHOLDER</div>
+                  <div class="stat-label">Latest Report</div>
+                </div>
+              </div>
+              
+              <div class="filter-tabs">
+                <button class="filter-btn active" onclick="filterReports('all')">All Reports</button>
+                <button class="filter-btn" onclick="filterReports('mobile')">📱 Mobile Only</button>
+                <button class="filter-btn" onclick="filterReports('desktop')">💻 Desktop Only</button>
+              </div>
+              
+              <div class="reports-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>📅 Date</th>
+                      <th>🌐 URL</th>
+                      <th>📱 Device</th>
+                      <th>📄 File Size</th>
+                      <th>🔗 Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reports-body">
+                    TABLE_ROWS_PLACEHOLDER
+                  </tbody>
+                </table>
+              </div>
+              
+              <div class="last-updated">
+                Last updated: LAST_UPDATED_PLACEHOLDER
+              </div>
+            </div>
+            
+            <script>
+              function filterReports(type) {
+                const rows = document.querySelectorAll('#reports-body tr');
+                const buttons = document.querySelectorAll('.filter-btn');
+                
+                // Update button states
+                buttons.forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                // Filter rows
+                rows.forEach(row => {
+                  if (type === 'all') {
+                    row.classList.remove('hidden');
+                  } else {
+                    const badge = row.querySelector('.badge');
+                    if (badge) {
+                      if (badge.classList.contains(type)) {
+                        row.classList.remove('hidden');
+                      } else {
+                        row.classList.add('hidden');
+                      }
+                    }
+                  }
+                });
+              }
+            </script>
+          </body>
+          </html>
+          EOF
+          
+          # แทนที่ placeholders
+          sed -i "s/TOTAL_REPORTS_PLACEHOLDER/$TOTAL_REPORTS/g" index.html
+          sed -i "s/MOBILE_COUNT_PLACEHOLDER/$MOBILE_COUNT/g" index.html
+          sed -i "s/DESKTOP_COUNT_PLACEHOLDER/$DESKTOP_COUNT/g" index.html
+          sed -i "s/LATEST_DATE_PLACEHOLDER/$LATEST_DATE/g" index.html
+          sed -i "s|TABLE_ROWS_PLACEHOLDER|$ALL_ROWS|g" index.html
+          sed -i "s/LAST_UPDATED_PLACEHOLDER/$(date "+%B %d, %Y at %H:%M UTC")/g" index.html
+          
+          echo "✅ Static index page created"
+          
+      - name: Commit and Push Report
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add report/ index.html reports.json
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            REPORT_DATE=$(date +'%Y-%m-%d')
+            git commit -m "📊 Add weekly Lighthouse report (Mobile + Desktop) for ${REPORT_DATE}"
+            git push
+          fi
+          
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report-${{ github.run_number }}
+          path: |
+            report/
+            index.html
+            reports.json
+          retention-days: 90
