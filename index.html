@@ -181,15 +181,15 @@
     
     <div class="stats">
       <div class="stat-card">
-        <div class="stat-number">6</div>
+        <div class="stat-number">8</div>
         <div class="stat-label">Total Reports</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">3</div>
+        <div class="stat-number">4</div>
         <div class="stat-label">Mobile Reports</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">3</div>
+        <div class="stat-number">4</div>
         <div class="stat-label">Desktop Reports</div>
       </div>
       <div class="stat-card">
@@ -216,13 +216,13 @@
           </tr>
         </thead>
         <tbody id="reports-body">
-          <tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>898 KB</td><td><a href="report/mobile/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>913 KB</td><td><a href="report/mobile/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>902 KB</td><td><a href="report/mobile/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1106 KB</td><td><a href="report/desktop/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1058 KB</td><td><a href="report/desktop/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1067 KB</td><td><a href="report/desktop/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr>
+          <tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>898 KB</td><td><a href="report/mobile/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>913 KB</td><td><a href="report/mobile/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>902 KB</td><td><a href="report/mobile/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>920 KB</td><td><a href="report/mobile/2026-02-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1106 KB</td><td><a href="report/desktop/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1058 KB</td><td><a href="report/desktop/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1067 KB</td><td><a href="report/desktop/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1144 KB</td><td><a href="report/desktop/2026-02-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr>
         </tbody>
       </table>
     </div>
     
     <div class="last-updated">
-      Last updated: February 16, 2026 at 03:05 UTC
+      Last updated: February 23, 2026 at 03:04 UTC
     </div>
   </div>
   
@@ -251,22 +251,6 @@
         }
       });
     }
-    function sortTableByDate() {
-        const tbody = document.getElementById("reports-body");
-        const rows = Array.from(tbody.querySelectorAll("tr"));
-
-        rows.sort((a, b) => {
-            const dateA = new Date(a.cells[0].innerText.trim());
-            const dateB = new Date(b.cells[0].innerText.trim());
-            return dateB - dateA; // DESC (ล่าสุดก่อน)
-        });
-
-        tbody.innerHTML = "";
-        rows.forEach(row => tbody.appendChild(row));
-    }
-
-    // เรียกตอนโหลดหน้า
-    sortTableByDate();
   </script>
 </body>
 </html>
