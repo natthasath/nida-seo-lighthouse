@@ -130,7 +130,7 @@ jobs:
           DESKTOP_COUNT=$(echo "$REPORTS_DATA" | jq '.desktop | length')
           TOTAL_REPORTS=$((MOBILE_COUNT + DESKTOP_COUNT))
 
-          LATEST_DATE=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else max end')
+          LATEST_DATE=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else max end' | tr -d '\r')
 
           fmt_date() {
             local d="$1"
@@ -139,7 +139,7 @@ jobs:
           }
 
           LATEST_DATE_FMT=$(fmt_date "$LATEST_DATE")
-          FIRST_DATE_FMT=$(fmt_date "$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else min end')")
+          FIRST_DATE_FMT=$(fmt_date "$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else min end' | tr -d '\r')")
 
           score_class() {
             local s="$1"
@@ -203,7 +203,7 @@ jobs:
           LATEST_DESKTOP_CARD=$(build_latest_card "desktop" "Desktop")
 
           # --- history rows: latest date first, mobile before desktop per date ---
-          DATES=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | unique | reverse | .[]')
+          DATES=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | unique | reverse | .[]' | tr -d '\r')
 
           ALL_ROWS=""
           for d in $DATES; do
