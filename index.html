@@ -1,256 +1,481 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lighthouse Reports - NIDA.AC.TH</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 40px 20px;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: white;
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 2.5em;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-    h2 {
-      color: rgba(255,255,255,0.9);
-      text-align: center;
-      margin-bottom: 40px;
-      font-weight: 300;
-      font-size: 1.2em;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .stat-card {
-      background: rgba(255,255,255,0.95);
-      border-radius: 12px;
-      padding: 24px;
-      text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .stat-number {
-      font-size: 2.5em;
-      font-weight: bold;
-      color: #667eea;
-      margin-bottom: 8px;
-    }
-    .stat-label {
-      color: #666;
-      font-size: 0.9em;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .filter-tabs {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .filter-btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #f0f0f0;
-      color: #333;
-      font-size: 0.9em;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .filter-btn.active {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    .filter-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .reports-table {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    thead {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    th, td {
-      padding: 16px;
-      text-align: left;
-    }
-    th {
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.85em;
-      letter-spacing: 0.5px;
-    }
-    tbody tr {
-      transition: all 0.2s;
-    }
-    tbody tr:nth-child(even) {
-      background: #f8f9fa;
-    }
-    tbody tr:hover {
-      background: #e9ecef;
-    }
-    tbody tr.hidden {
-      display: none;
-    }
-    .badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85em;
-      font-weight: 600;
-    }
-    .badge.mobile {
-      background: #e3f2fd;
-      color: #1976d2;
-    }
-    .badge.desktop {
-      background: #f3e5f5;
-      color: #7b1fa2;
-    }
-    .view-btn {
-      display: inline-block;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
-      text-decoration: none;
-      font-size: 0.9em;
-      font-weight: 600;
-      transition: opacity 0.3s;
-    }
-    .view-btn:hover {
-      opacity: 0.9;
-    }
-    .no-reports {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-    }
-    .last-updated {
-      text-align: center;
-      color: rgba(255,255,255,0.8);
-      margin-top: 30px;
-      font-size: 0.9em;
-    }
-    @media (max-width: 768px) {
-      h1 { font-size: 1.8em; }
-      .stats { grid-template-columns: 1fr; }
-      table { font-size: 0.9em; }
-      th, td { padding: 12px 8px; }
-      .filter-tabs { padding: 15px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Lighthouse Reports · NIDA.AC.TH</title>
+<meta name="description" content="Weekly Lighthouse performance, accessibility, best practices, and SEO monitoring for nida.ac.th.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbfbf9;
+    --surface: #ffffff;
+    --border: #e7e5df;
+    --border-strong: #d7d4cb;
+    --text-primary: #1b1c1e;
+    --text-secondary: #6b6d72;
+    --text-tertiary: #6e6f74;
+    --accent: #1f3d63;
+    --accent-soft: #eaf0f7;
+    --good: #1c7a4d;
+    --good-bg: #e6f4ec;
+    --average: #8a5209;
+    --average-bg: #faf0dc;
+    --poor: #b3362a;
+    --poor-bg: #fbe9e7;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 2px rgba(27, 28, 30, 0.05);
+    --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(24px, 4vw, 56px) clamp(16px, 4vw, 32px) 64px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(28px, 4vw, 44px);
+  }
+
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  .masthead h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.375rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .masthead-sub {
+    margin: 0;
+    max-width: 52ch;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+  .masthead-sub a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .masthead-meta {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .meta-label {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .meta-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .section-head h2 {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .section-date {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .latest-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .latest-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px 20px;
+    box-shadow: var(--shadow-sm);
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .latest-card:nth-of-type(2) { animation-delay: 0.06s; }
+  .latest-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .device {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .device .icon { color: var(--accent); }
+  .pill {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .pill-latest { background: var(--accent-soft); color: var(--accent); }
+  .pill-sm { padding: 2px 8px; font-size: 0.625rem; margin-left: 8px; }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .score-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 4px 12px 14px;
+    border-left: 3px solid var(--border-strong);
+  }
+  .score-block.score-good { border-left-color: var(--good); }
+  .score-block.score-average { border-left-color: var(--average); }
+  .score-block.score-poor { border-left-color: var(--poor); }
+  .score-num {
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 1.625rem;
+    line-height: 1;
+  }
+  .score-block.score-good .score-num { color: var(--good); }
+  .score-block.score-average .score-num { color: var(--average); }
+  .score-block.score-poor .score-num { color: var(--poor); }
+  .score-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .delta {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .delta-up { color: var(--good); }
+  .delta-down { color: var(--poor); }
+  .delta-flat { color: var(--text-tertiary); font-weight: 500; }
+
+  .latest-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .latest-size {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+  .latest-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .latest-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .latest-card-empty { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+  .empty-text { color: var(--text-tertiary); font-size: 0.875rem; margin: 0; }
+
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat:not(:last-child) { border-right: 1px solid var(--border); }
+  .stat-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.375rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .tabs { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  .tab {
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { background: var(--accent); color: #fff; }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: auto;
+    max-height: 560px;
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    text-align: left;
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f6f5f2; }
+  tbody tr.row-latest { background: var(--accent-soft); }
+  tbody tr.row-latest:hover { background: var(--accent-soft); }
+  tbody td {
+    padding: 11px 16px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+  .cell-date { font-variant-numeric: tabular-nums; }
+  .cell-size { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .chip {
+    display: inline-block;
+    min-width: 2.4em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+  }
+  .chip-good { background: var(--good-bg); color: var(--good); }
+  .chip-average { background: var(--average-bg); color: var(--average); }
+  .chip-poor { background: var(--poor-bg); color: var(--poor); }
+  .col-action a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.8125rem;
+  }
+  .col-action a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .no-reports { text-align: center; padding: 40px 20px; color: var(--text-tertiary); white-space: normal; }
+  tbody tr.hidden { display: none; }
+
+  .page-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+  }
+  .page-footer a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+
+  .icon { width: 1em; height: 1em; }
+  .icon-sm { width: 0.9em; height: 0.9em; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .latest-card { animation: none; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 768px) {
+    .latest-grid { grid-template-columns: 1fr; }
+    .stats-strip { grid-template-columns: 1fr; }
+    .stat:not(:last-child) { border-right: none; border-bottom: 1px solid var(--border); }
+    .masthead { align-items: flex-start; }
+    .masthead-meta { text-align: left; }
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>📊 Lighthouse Performance Reports</h1>
-    <h2>NIDA.AC.TH - Weekly Monitoring</h2>
-    
-    <div class="stats">
-      <div class="stat-card">
-        <div class="stat-number">50</div>
-        <div class="stat-label">Total Reports</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">25</div>
-        <div class="stat-label">Mobile Reports</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">25</div>
-        <div class="stat-label">Desktop Reports</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">2026-02-05</div>
-        <div class="stat-label">Latest Report</div>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="7" y="2.5" width="10" height="19" rx="2"></rect>
+    <line x1="11" y1="18.2" x2="13" y2="18.2"></line>
+  </symbol>
+  <symbol id="icon-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="4" width="19" height="13" rx="1.5"></rect>
+    <line x1="8.5" y1="21" x2="15.5" y2="21"></line>
+    <line x1="12" y1="17" x2="12" y2="21"></line>
+  </symbol>
+  <symbol id="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 17L17 7"></path>
+    <path d="M9 7H17V15"></path>
+  </symbol>
+</svg>
+
+<div class="page">
+  <header class="masthead">
+    <div class="masthead-text">
+      <p class="eyebrow">Performance Monitoring</p>
+      <h1>Lighthouse Reports</h1>
+      <p class="masthead-sub">Automated weekly audits of <a href="https://nida.ac.th" target="_blank" rel="noopener">nida.ac.th</a> across performance, accessibility, best practices, and SEO.</p>
+    </div>
+    <div class="masthead-meta">
+      <span class="meta-label">Last updated</span>
+      <span class="meta-value">July 24, 2026 at 16:22 UTC</span>
+    </div>
+  </header>
+
+  <section class="latest" aria-labelledby="latest-heading">
+    <div class="section-head">
+      <h2 id="latest-heading">Latest Scan</h2>
+      <span class="section-date">Jul 20, 2026</span>
+    </div>
+    <div class="latest-grid">
+      <article class="latest-card"><div class="latest-card-head"><span class="device device-mobile"><svg class="icon" aria-hidden="true"><use href="#icon-mobile"></use></svg>Mobile</span><span class="pill pill-latest">Latest</span></div><div class="score-grid"><div class="score-block score-average"><span class="score-num">58</span><span class="score-name">Performance</span><span class="delta delta-down">-9</span></div><div class="score-block score-average"><span class="score-num">87</span><span class="score-name">Accessibility</span><span class="delta delta-flat">no change</span></div><div class="score-block score-good"><span class="score-num">96</span><span class="score-name">Best Practices</span><span class="delta delta-flat">no change</span></div><div class="score-block score-good"><span class="score-num">92</span><span class="score-name">SEO</span><span class="delta delta-flat">no change</span></div></div><div class="latest-card-foot"><span class="latest-size">849 KB</span><a class="latest-link" href="report/mobile/2026-07-20_lighthouse-report.html" target="_blank" rel="noopener">View full report<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-arrow"></use></svg></a></div></article>
+      <article class="latest-card"><div class="latest-card-head"><span class="device device-desktop"><svg class="icon" aria-hidden="true"><use href="#icon-desktop"></use></svg>Desktop</span><span class="pill pill-latest">Latest</span></div><div class="score-grid"><div class="score-block score-good"><span class="score-num">95</span><span class="score-name">Performance</span><span class="delta delta-up">+12</span></div><div class="score-block score-average"><span class="score-num">83</span><span class="score-name">Accessibility</span><span class="delta delta-flat">no change</span></div><div class="score-block score-good"><span class="score-num">96</span><span class="score-name">Best Practices</span><span class="delta delta-flat">no change</span></div><div class="score-block score-good"><span class="score-num">92</span><span class="score-name">SEO</span><span class="delta delta-flat">no change</span></div></div><div class="latest-card-foot"><span class="latest-size">1267 KB</span><a class="latest-link" href="report/desktop/2026-07-20_lighthouse-report.html" target="_blank" rel="noopener">View full report<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-arrow"></use></svg></a></div></article>
+    </div>
+  </section>
+
+  <section class="stats-strip" aria-label="Summary">
+    <div class="stat">
+      <span class="stat-num">50</span>
+      <span class="stat-label">Total reports archived</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">Feb 5, 2026</span>
+      <span class="stat-label">Monitoring since</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">Weekly</span>
+      <span class="stat-label">Scan cadence · Mondays, 09:00 ICT</span>
+    </div>
+  </section>
+
+  <section class="history" aria-labelledby="history-heading">
+    <div class="section-head">
+      <h2 id="history-heading">Report History</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button class="tab" data-filter="mobile" role="tab" aria-selected="false">Mobile</button>
+        <button class="tab" data-filter="desktop" role="tab" aria-selected="false">Desktop</button>
       </div>
     </div>
-    
-    <div class="filter-tabs">
-      <button class="filter-btn active" onclick="filterReports('all')">All Reports</button>
-      <button class="filter-btn" onclick="filterReports('mobile')">📱 Mobile Only</button>
-      <button class="filter-btn" onclick="filterReports('desktop')">💻 Desktop Only</button>
-    </div>
-    
-    <div class="reports-table">
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>📅 Date</th>
-            <th>🌐 URL</th>
-            <th>📱 Device</th>
-            <th>📄 File Size</th>
-            <th>🔗 Action</th>
+            <th>Date</th>
+            <th>Device</th>
+            <th>Performance</th>
+            <th>Accessibility</th>
+            <th>Best Practices</th>
+            <th>SEO</th>
+            <th>Size</th>
+            <th class="col-action">Report</th>
           </tr>
         </thead>
-        <tbody id="reports-body">
-          <tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>898 KB</td><td><a href="report/mobile/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>913 KB</td><td><a href="report/mobile/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>902 KB</td><td><a href="report/mobile/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>920 KB</td><td><a href="report/mobile/2026-02-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 02, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>937 KB</td><td><a href="report/mobile/2026-03-02_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>915 KB</td><td><a href="report/mobile/2026-03-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>889 KB</td><td><a href="report/mobile/2026-03-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>947 KB</td><td><a href="report/mobile/2026-03-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 30, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>966 KB</td><td><a href="report/mobile/2026-03-30_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 06, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>972 KB</td><td><a href="report/mobile/2026-04-06_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 13, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>960 KB</td><td><a href="report/mobile/2026-04-13_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 20, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>867 KB</td><td><a href="report/mobile/2026-04-20_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 27, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>844 KB</td><td><a href="report/mobile/2026-04-27_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 04, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>894 KB</td><td><a href="report/mobile/2026-05-04_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 11, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>848 KB</td><td><a href="report/mobile/2026-05-11_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 18, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>754 KB</td><td><a href="report/mobile/2026-05-18_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 25, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>475 KB</td><td><a href="report/mobile/2026-05-25_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 01, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>760 KB</td><td><a href="report/mobile/2026-06-01_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 08, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>748 KB</td><td><a href="report/mobile/2026-06-08_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 15, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>809 KB</td><td><a href="report/mobile/2026-06-15_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 22, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>748 KB</td><td><a href="report/mobile/2026-06-22_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 29, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>764 KB</td><td><a href="report/mobile/2026-06-29_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 06, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>469 KB</td><td><a href="report/mobile/2026-07-06_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 13, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>917 KB</td><td><a href="report/mobile/2026-07-13_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 20, 2026</strong></td><td>nida.ac.th</td><td><span class="badge mobile">📱 Mobile</span></td><td>846 KB</td><td><a href="report/mobile/2026-07-20_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 05, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1106 KB</td><td><a href="report/desktop/2026-02-05_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1058 KB</td><td><a href="report/desktop/2026-02-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1067 KB</td><td><a href="report/desktop/2026-02-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Feb 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1144 KB</td><td><a href="report/desktop/2026-02-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 02, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1169 KB</td><td><a href="report/desktop/2026-03-02_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 09, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1209 KB</td><td><a href="report/desktop/2026-03-09_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 16, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1215 KB</td><td><a href="report/desktop/2026-03-16_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 23, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1225 KB</td><td><a href="report/desktop/2026-03-23_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Mar 30, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1263 KB</td><td><a href="report/desktop/2026-03-30_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 06, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1222 KB</td><td><a href="report/desktop/2026-04-06_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 13, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1123 KB</td><td><a href="report/desktop/2026-04-13_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 20, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1246 KB</td><td><a href="report/desktop/2026-04-20_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Apr 27, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1229 KB</td><td><a href="report/desktop/2026-04-27_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 04, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1248 KB</td><td><a href="report/desktop/2026-05-04_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 11, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1123 KB</td><td><a href="report/desktop/2026-05-11_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 18, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>455 KB</td><td><a href="report/desktop/2026-05-18_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>May 25, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>455 KB</td><td><a href="report/desktop/2026-05-25_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 01, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>455 KB</td><td><a href="report/desktop/2026-06-01_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 08, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1044 KB</td><td><a href="report/desktop/2026-06-08_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 15, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>473 KB</td><td><a href="report/desktop/2026-06-15_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 22, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>453 KB</td><td><a href="report/desktop/2026-06-22_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jun 29, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1124 KB</td><td><a href="report/desktop/2026-06-29_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 06, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1050 KB</td><td><a href="report/desktop/2026-07-06_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 13, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1244 KB</td><td><a href="report/desktop/2026-07-13_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr><tr><td><strong>Jul 20, 2026</strong></td><td>nida.ac.th</td><td><span class="badge desktop">💻 Desktop</span></td><td>1264 KB</td><td><a href="report/desktop/2026-07-20_lighthouse-report.html" class="view-btn" target="_blank">View Report →</a></td></tr>
+        <tbody id="history-body">
+          <tr class="row" data-device="mobile"><td class="cell-date">Feb 5, 2026 </td><td><span class="device device-mobile"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-mobile"></use></svg>Mobile</span></td><td><span class="chip chip-average">64</span></td><td><span class="chip chip-average">83</span></td><td><span class="chip chip-good">96</span></td><td><span class="chip chip-good">100</span></td><td class="cell-size">900 KB</td><td class="col-action"><a href="report/mobile/2026-02-05_lighthouse-report.html" target="_blank" rel="noopener">View<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-arrow"></use></svg></a></td></tr><tr class="row" data-device="desktop"><td class="cell-date">Feb 5, 2026 </td><td><span class="device device-desktop"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-desktop"></use></svg>Desktop</span></td><td><span class="chip chip-good">95</span></td><td><span class="chip chip-average">83</span></td><td><span class="chip chip-good">96</span></td><td><span class="chip chip-good">100</span></td><td class="cell-size">1109 KB</td><td class="col-action"><a href="report/desktop/2026-02-05_lighthouse-report.html" target="_blank" rel="noopener">View<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-arrow"></use></svg></a></td></tr>
         </tbody>
       </table>
     </div>
-    
-    <div class="last-updated">
-      Last updated: July 20, 2026 at 05:37 UTC
-    </div>
-  </div>
-  
-  <script>
-    function filterReports(type) {
-      const rows = document.querySelectorAll('#reports-body tr');
-      const buttons = document.querySelectorAll('.filter-btn');
-      
-      // Update button states
-      buttons.forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      
-      // Filter rows
-      rows.forEach(row => {
-        if (type === 'all') {
-          row.classList.remove('hidden');
-        } else {
-          const badge = row.querySelector('.badge');
-          if (badge) {
-            if (badge.classList.contains(type)) {
-              row.classList.remove('hidden');
-            } else {
-              row.classList.add('hidden');
-            }
+  </section>
+
+  <footer class="page-footer">
+    <p>Generated automatically every Monday via GitHub Actions from live Lighthouse audits. <a href="https://github.com/natthasath/nida-seo-lighthouse" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var tabs = document.querySelectorAll('.tab');
+    var rows = document.querySelectorAll('#history-body tr[data-device]');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        var filter = tab.getAttribute('data-filter');
+        rows.forEach(function (row) {
+          if (filter === 'all' || row.getAttribute('data-device') === filter) {
+            row.classList.remove('hidden');
+          } else {
+            row.classList.add('hidden');
           }
-        }
+        });
       });
-    }
-  </script>
+    });
+  })();
+</script>
 </body>
 </html>

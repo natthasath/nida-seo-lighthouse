@@ -9,463 +9,755 @@ on:
 permissions:
   contents: write
 
+env:
+  TARGET_URL: https://nida.ac.th
+
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Install Dependencies
         run: |
           npm install -g lighthouse
           npm install -g @lhci/cli@0.13.x
-          
+
       - name: Create report directories
         run: |
           mkdir -p report/mobile
           mkdir -p report/desktop
-          
+
       - name: Run Lighthouse for Mobile and Desktop
         run: |
           REPORT_DATE=$(date +'%Y-%m-%d')
-          
+
           echo "🔄 Running Mobile Lighthouse test..."
-          lighthouse https://nida.ac.th \
+          lighthouse "$TARGET_URL" \
             --output=html \
             --output-path="report/mobile/${REPORT_DATE}_lighthouse-report.html" \
             --chrome-flags="--headless --no-sandbox --disable-gpu" \
             --throttling-method=simulate \
             --only-categories=performance,accessibility,best-practices,seo,pwa
-          
+
           echo "✅ Mobile report generated"
           ls -lh "report/mobile/${REPORT_DATE}_lighthouse-report.html"
-          
+
           echo "🔄 Running Desktop Lighthouse test..."
-          lighthouse https://nida.ac.th \
+          lighthouse "$TARGET_URL" \
             --output=html \
             --output-path="report/desktop/${REPORT_DATE}_lighthouse-report.html" \
             --preset=desktop \
             --chrome-flags="--headless --no-sandbox --disable-gpu" \
             --only-categories=performance,accessibility,best-practices,seo,pwa
-          
+
           echo "✅ Desktop report generated"
           ls -lh "report/desktop/${REPORT_DATE}_lighthouse-report.html"
-          
+
       - name: Generate Reports Metadata
         run: |
-          echo "{" > reports.json
-          echo "  \"mobile\": [" >> reports.json
-          
-          # Scan Mobile reports
-          first=true
-          for file in report/mobile/*_lighthouse-report.html; do
-            if [ -f "$file" ]; then
+          export LC_ALL=C.UTF-8
+          TARGET_HOST=$(echo "$TARGET_URL" | sed -E 's#^https?://##')
+
+          # Pull the four Lighthouse category scores (0-100) straight out of
+          # the report's embedded JSON. Falls back to "null" if a category is
+          # missing from a given report (e.g. pwa isn't always scored).
+          extract_score() {
+            local file="$1" cat="$2" raw
+            raw=$(grep -oP "\"id\":\"${cat}\",\"score\":[0-9.]+" "$file" | head -1 | grep -oP '[0-9.]+$' || true)
+            if [ -z "$raw" ]; then
+              echo "null"
+            else
+              awk -v v="$raw" 'BEGIN{printf "%d", (v*100)+0.5}'
+            fi
+          }
+
+          write_device_json() {
+            local device="$1"
+            local first=true
+            for file in report/"$device"/*_lighthouse-report.html; do
+              [ -f "$file" ] || continue
               filename=$(basename "$file")
               date=$(echo "$filename" | grep -oP '\d{4}-\d{2}-\d{2}')
-              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+              size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
               size_kb=$((size / 1024))
-              
-              if [ "$first" = true ]; then
-                first=false
-              else
-                echo "," >> reports.json
-              fi
-              
-              echo "    {" >> reports.json
-              echo "      \"filename\": \"$filename\"," >> reports.json
-              echo "      \"date\": \"$date\"," >> reports.json
-              echo "      \"url\": \"nida.ac.th\"," >> reports.json
-              echo "      \"size\": \"$size_kb KB\"" >> reports.json
-              echo "    }" >> reports.json
-            fi
-          done
-          
-          echo "  ]," >> reports.json
-          echo "  \"desktop\": [" >> reports.json
-          
-          # Scan Desktop reports
-          first=true
-          for file in report/desktop/*_lighthouse-report.html; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              date=$(echo "$filename" | grep -oP '\d{4}-\d{2}-\d{2}')
-              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
-              size_kb=$((size / 1024))
-              
-              if [ "$first" = true ]; then
-                first=false
-              else
-                echo "," >> reports.json
-              fi
-              
-              echo "    {" >> reports.json
-              echo "      \"filename\": \"$filename\"," >> reports.json
-              echo "      \"date\": \"$date\"," >> reports.json
-              echo "      \"url\": \"nida.ac.th\"," >> reports.json
-              echo "      \"size\": \"$size_kb KB\"" >> reports.json
-              echo "    }" >> reports.json
-            fi
-          done
-          
-          echo "  ]" >> reports.json
-          echo "}" >> reports.json
-          
+
+              perf=$(extract_score "$file" "performance")
+              a11y=$(extract_score "$file" "accessibility")
+              bp=$(extract_score "$file" "best-practices")
+              seo=$(extract_score "$file" "seo")
+
+              if [ "$first" = true ]; then first=false; else echo ","; fi
+
+              echo "    {"
+              echo "      \"filename\": \"$filename\","
+              echo "      \"date\": \"$date\","
+              echo "      \"url\": \"$TARGET_HOST\","
+              echo "      \"size\": \"$size_kb KB\","
+              echo "      \"scores\": { \"performance\": $perf, \"accessibility\": $a11y, \"bestPractices\": $bp, \"seo\": $seo }"
+              echo "    }"
+            done
+          }
+
+          {
+            echo "{"
+            echo "  \"mobile\": ["
+            write_device_json mobile
+            echo "  ],"
+            echo "  \"desktop\": ["
+            write_device_json desktop
+            echo "  ]"
+            echo "}"
+          } > reports.json
+
           echo "✅ Reports metadata created"
           cat reports.json
-          
+
       - name: Generate Static Index Page
         run: |
-          # อ่านข้อมูลจาก reports.json
+          export LC_ALL=C.UTF-8
+          TARGET_HOST=$(echo "$TARGET_URL" | sed -E 's#^https?://##')
           REPORTS_DATA=$(cat reports.json)
-          
-          # นับจำนวนรายงาน
+
           MOBILE_COUNT=$(echo "$REPORTS_DATA" | jq '.mobile | length')
           DESKTOP_COUNT=$(echo "$REPORTS_DATA" | jq '.desktop | length')
           TOTAL_REPORTS=$((MOBILE_COUNT + DESKTOP_COUNT))
-          
-          # หา date ล่าสุด
-          LATEST_DATE=$(echo "$REPORTS_DATA" | jq -r '.mobile[0].date // .desktop[0].date // "-"')
-          
-          # หา date แรกสุด
-          FIRST_DATE_MOBILE=$(echo "$REPORTS_DATA" | jq -r '.mobile[-1].date // "-"')
-          FIRST_DATE_DESKTOP=$(echo "$REPORTS_DATA" | jq -r '.desktop[-1].date // "-"')
-          FIRST_DATE="${FIRST_DATE_MOBILE}"
-          if [ "$FIRST_DATE_DESKTOP" != "-" ]; then
-            FIRST_DATE="$FIRST_DATE_DESKTOP"
-          fi
-          
-          # สร้างตาราง HTML สำหรับ Mobile
-          MOBILE_ROWS=""
-          while IFS= read -r report; do
-            filename=$(echo "$report" | jq -r '.filename')
-            date=$(echo "$report" | jq -r '.date')
-            url=$(echo "$report" | jq -r '.url')
-            size=$(echo "$report" | jq -r '.size')
-            
-            # Format date
-            formatted_date=$(date -d "$date" "+%b %d, %Y" 2>/dev/null || date -j -f "%Y-%m-%d" "$date" "+%b %d, %Y" 2>/dev/null || echo "$date")
-            
-            MOBILE_ROWS+="<tr>"
-            MOBILE_ROWS+="<td><strong>$formatted_date</strong></td>"
-            MOBILE_ROWS+="<td>$url</td>"
-            MOBILE_ROWS+="<td><span class=\"badge mobile\">📱 Mobile</span></td>"
-            MOBILE_ROWS+="<td>$size</td>"
-            MOBILE_ROWS+="<td><a href=\"report/mobile/$filename\" class=\"view-btn\" target=\"_blank\">View Report →</a></td>"
-            MOBILE_ROWS+="</tr>"
-          done < <(echo "$REPORTS_DATA" | jq -c '.mobile[]')
-          
-          # สร้างตาราง HTML สำหรับ Desktop
-          DESKTOP_ROWS=""
-          while IFS= read -r report; do
-            filename=$(echo "$report" | jq -r '.filename')
-            date=$(echo "$report" | jq -r '.date')
-            url=$(echo "$report" | jq -r '.url')
-            size=$(echo "$report" | jq -r '.size')
-            
-            # Format date
-            formatted_date=$(date -d "$date" "+%b %d, %Y" 2>/dev/null || date -j -f "%Y-%m-%d" "$date" "+%b %d, %Y" 2>/dev/null || echo "$date")
-            
-            DESKTOP_ROWS+="<tr>"
-            DESKTOP_ROWS+="<td><strong>$formatted_date</strong></td>"
-            DESKTOP_ROWS+="<td>$url</td>"
-            DESKTOP_ROWS+="<td><span class=\"badge desktop\">💻 Desktop</span></td>"
-            DESKTOP_ROWS+="<td>$size</td>"
-            DESKTOP_ROWS+="<td><a href=\"report/desktop/$filename\" class=\"view-btn\" target=\"_blank\">View Report →</a></td>"
-            DESKTOP_ROWS+="</tr>"
-          done < <(echo "$REPORTS_DATA" | jq -c '.desktop[]')
-          
-          # Combine rows
-          ALL_ROWS="${MOBILE_ROWS}${DESKTOP_ROWS}"
-          
-          # ถ้าไม่มีรายงาน
+
+          LATEST_DATE=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else max end')
+
+          fmt_date() {
+            local d="$1"
+            [ -z "$d" ] && { echo ""; return; }
+            date -d "$d" "+%b %-d, %Y" 2>/dev/null || date -j -f "%Y-%m-%d" "$d" "+%b %e, %Y" 2>/dev/null || echo "$d"
+          }
+
+          LATEST_DATE_FMT=$(fmt_date "$LATEST_DATE")
+          FIRST_DATE_FMT=$(fmt_date "$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | if length == 0 then "" else min end')")
+
+          score_class() {
+            local s="$1"
+            if [ "$s" = "null" ] || [ -z "$s" ]; then echo "na"; return; fi
+            if [ "$s" -ge 90 ]; then echo "good";
+            elif [ "$s" -ge 50 ]; then echo "average";
+            else echo "poor"; fi
+          }
+
+          score_display() {
+            local s="$1"
+            { [ "$s" = "null" ] || [ -z "$s" ]; } && { echo "N/A"; return; }
+            echo "$s"
+          }
+
+          # --- "Latest Scan" card for one device, with week-over-week deltas ---
+          build_latest_card() {
+            local device="$1" label="$2"
+            local entry prev
+            entry=$(echo "$REPORTS_DATA" | jq -c --arg dev "$device" '.[$dev] | sort_by(.date) | last // empty')
+            if [ -z "$entry" ]; then
+              echo "<article class=\"latest-card latest-card-empty\"><p class=\"empty-text\">No $label scan yet.</p></article>"
+              return
+            fi
+            prev=$(echo "$REPORTS_DATA" | jq -c --arg dev "$device" '.[$dev] | sort_by(.date) | (if length > 1 then .[length-2] else empty end)')
+
+            local date perf a11y bp seo size filename
+            date=$(echo "$entry" | jq -r '.date')
+            perf=$(echo "$entry" | jq -r '.scores.performance')
+            a11y=$(echo "$entry" | jq -r '.scores.accessibility')
+            bp=$(echo "$entry" | jq -r '.scores.bestPractices')
+            seo=$(echo "$entry" | jq -r '.scores.seo')
+            size=$(echo "$entry" | jq -r '.size')
+            filename=$(echo "$entry" | jq -r '.filename')
+
+            delta() {
+              local key="$1" cur="$2"
+              if [ -z "$prev" ]; then echo ""; return; fi
+              local p; p=$(echo "$prev" | jq -r --arg k "$key" '.scores[$k]')
+              if [ "$p" = "null" ] || [ "$cur" = "null" ]; then echo ""; return; fi
+              local d=$((cur - p))
+              if [ "$d" -gt 0 ]; then echo "<span class=\"delta delta-up\">+$d</span>";
+              elif [ "$d" -lt 0 ]; then echo "<span class=\"delta delta-down\">$d</span>";
+              else echo "<span class=\"delta delta-flat\">no change</span>"; fi
+            }
+
+            local blocks=""
+            for pair in "performance:Performance:$perf" "accessibility:Accessibility:$a11y" "bestPractices:Best Practices:$bp" "seo:SEO:$seo"; do
+              local key="${pair%%:*}"; local rest="${pair#*:}"; local name="${rest%%:*}"; local val="${rest#*:}"
+              local cls; cls=$(score_class "$val")
+              local disp; disp=$(score_display "$val")
+              local d; d=$(delta "$key" "$val")
+              blocks+="<div class=\"score-block score-$cls\"><span class=\"score-num\">$disp</span><span class=\"score-name\">$name</span>$d</div>"
+            done
+
+            local report_path="report/$device/$filename"
+            echo "<article class=\"latest-card\"><div class=\"latest-card-head\"><span class=\"device device-$device\"><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#icon-$device\"></use></svg>$label</span><span class=\"pill pill-latest\">Latest</span></div><div class=\"score-grid\">$blocks</div><div class=\"latest-card-foot\"><span class=\"latest-size\">$size</span><a class=\"latest-link\" href=\"$report_path\" target=\"_blank\" rel=\"noopener\">View full report<svg class=\"icon icon-sm\" aria-hidden=\"true\"><use href=\"#icon-arrow\"></use></svg></a></div></article>"
+          }
+
+          LATEST_MOBILE_CARD=$(build_latest_card "mobile" "Mobile")
+          LATEST_DESKTOP_CARD=$(build_latest_card "desktop" "Desktop")
+
+          # --- history rows: latest date first, mobile before desktop per date ---
+          DATES=$(echo "$REPORTS_DATA" | jq -r '[.mobile[].date, .desktop[].date] | unique | reverse | .[]')
+
+          ALL_ROWS=""
+          for d in $DATES; do
+            d_fmt=$(fmt_date "$d")
+            for device in mobile desktop; do
+              entry=$(echo "$REPORTS_DATA" | jq -c --arg dev "$device" --arg d "$d" '.[$dev][] | select(.date==$d)')
+              [ -z "$entry" ] && continue
+
+              perf=$(echo "$entry" | jq -r '.scores.performance')
+              a11y=$(echo "$entry" | jq -r '.scores.accessibility')
+              bp=$(echo "$entry" | jq -r '.scores.bestPractices')
+              seo=$(echo "$entry" | jq -r '.scores.seo')
+              size=$(echo "$entry" | jq -r '.size')
+              filename=$(echo "$entry" | jq -r '.filename')
+
+              row_class="row"
+              latest_pill=""
+              if [ "$d" = "$LATEST_DATE" ]; then
+                row_class="row row-latest"
+                latest_pill="<span class=\"pill pill-latest pill-sm\">Latest</span>"
+              fi
+
+              cell() {
+                local val="$1"
+                local cls; cls=$(score_class "$val")
+                local disp; disp=$(score_display "$val")
+                echo "<td><span class=\"chip chip-$cls\">$disp</span></td>"
+              }
+
+              device_label="Mobile"
+              [ "$device" = "desktop" ] && device_label="Desktop"
+
+              ALL_ROWS+="<tr class=\"$row_class\" data-device=\"$device\">"
+              ALL_ROWS+="<td class=\"cell-date\">$d_fmt $latest_pill</td>"
+              ALL_ROWS+="<td><span class=\"device device-$device\"><svg class=\"icon icon-sm\" aria-hidden=\"true\"><use href=\"#icon-$device\"></use></svg>$device_label</span></td>"
+              ALL_ROWS+="$(cell "$perf")$(cell "$a11y")$(cell "$bp")$(cell "$seo")"
+              ALL_ROWS+="<td class=\"cell-size\">$size</td>"
+              ALL_ROWS+="<td class=\"col-action\"><a href=\"report/$device/$filename\" target=\"_blank\" rel=\"noopener\">View<svg class=\"icon icon-sm\" aria-hidden=\"true\"><use href=\"#icon-arrow\"></use></svg></a></td>"
+              ALL_ROWS+="</tr>"
+            done
+          done
+
           if [ -z "$ALL_ROWS" ]; then
-            ALL_ROWS='<tr><td colspan="5" class="no-reports">No reports available yet. Reports will be generated weekly.</td></tr>'
+            ALL_ROWS='<tr class="row-empty"><td colspan="8" class="no-reports">No reports available yet. The first scan will appear after the next scheduled run.</td></tr>'
           fi
-          
-          # สร้าง index.html
-          cat > index.html << 'EOF'
+
+          LAST_UPDATED=$(date "+%B %-d, %Y at %H:%M UTC" 2>/dev/null || date -u "+%B %d, %Y at %H:%M UTC")
+
+          cat > index_template.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Lighthouse Reports - NIDA.AC.TH</title>
-            <style>
-              * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-              }
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                padding: 40px 20px;
-              }
-              .container {
-                max-width: 1400px;
-                margin: 0 auto;
-              }
-              h1 {
-                color: white;
-                text-align: center;
-                margin-bottom: 20px;
-                font-size: 2.5em;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-              }
-              h2 {
-                color: rgba(255,255,255,0.9);
-                text-align: center;
-                margin-bottom: 40px;
-                font-weight: 300;
-                font-size: 1.2em;
-              }
-              .stats {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-              }
-              .stat-card {
-                background: rgba(255,255,255,0.95);
-                border-radius: 12px;
-                padding: 24px;
-                text-align: center;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-              }
-              .stat-number {
-                font-size: 2.5em;
-                font-weight: bold;
-                color: #667eea;
-                margin-bottom: 8px;
-              }
-              .stat-label {
-                color: #666;
-                font-size: 0.9em;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-              }
-              .filter-tabs {
-                background: white;
-                border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                display: flex;
-                gap: 10px;
-                justify-content: center;
-                flex-wrap: wrap;
-              }
-              .filter-btn {
-                padding: 10px 20px;
-                border: none;
-                border-radius: 8px;
-                background: #f0f0f0;
-                color: #333;
-                font-size: 0.9em;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s;
-              }
-              .filter-btn.active {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-              }
-              .filter-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-              }
-              .reports-table {
-                background: white;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-              }
-              table {
-                width: 100%;
-                border-collapse: collapse;
-              }
-              thead {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-              }
-              th, td {
-                padding: 16px;
-                text-align: left;
-              }
-              th {
-                font-weight: 600;
-                text-transform: uppercase;
-                font-size: 0.85em;
-                letter-spacing: 0.5px;
-              }
-              tbody tr {
-                transition: all 0.2s;
-              }
-              tbody tr:nth-child(even) {
-                background: #f8f9fa;
-              }
-              tbody tr:hover {
-                background: #e9ecef;
-              }
-              tbody tr.hidden {
-                display: none;
-              }
-              .badge {
-                display: inline-block;
-                padding: 6px 12px;
-                border-radius: 20px;
-                font-size: 0.85em;
-                font-weight: 600;
-              }
-              .badge.mobile {
-                background: #e3f2fd;
-                color: #1976d2;
-              }
-              .badge.desktop {
-                background: #f3e5f5;
-                color: #7b1fa2;
-              }
-              .view-btn {
-                display: inline-block;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 8px 16px;
-                border-radius: 6px;
-                text-decoration: none;
-                font-size: 0.9em;
-                font-weight: 600;
-                transition: opacity 0.3s;
-              }
-              .view-btn:hover {
-                opacity: 0.9;
-              }
-              .no-reports {
-                text-align: center;
-                padding: 40px;
-                color: #666;
-              }
-              .last-updated {
-                text-align: center;
-                color: rgba(255,255,255,0.8);
-                margin-top: 30px;
-                font-size: 0.9em;
-              }
-              @media (max-width: 768px) {
-                h1 { font-size: 1.8em; }
-                .stats { grid-template-columns: 1fr; }
-                table { font-size: 0.9em; }
-                th, td { padding: 12px 8px; }
-                .filter-tabs { padding: 15px; }
-              }
-            </style>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="color-scheme" content="light">
+          <title>Lighthouse Reports · NIDA.AC.TH</title>
+          <meta name="description" content="Weekly Lighthouse performance, accessibility, best practices, and SEO monitoring for nida.ac.th.">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <style>
+            :root {
+              --bg: #fbfbf9;
+              --surface: #ffffff;
+              --border: #e7e5df;
+              --border-strong: #d7d4cb;
+              --text-primary: #1b1c1e;
+              --text-secondary: #6b6d72;
+              --text-tertiary: #6e6f74;
+              --accent: #1f3d63;
+              --accent-soft: #eaf0f7;
+              --good: #1c7a4d;
+              --good-bg: #e6f4ec;
+              --average: #8a5209;
+              --average-bg: #faf0dc;
+              --poor: #b3362a;
+              --poor-bg: #fbe9e7;
+              --radius: 12px;
+              --radius-sm: 8px;
+              --shadow-sm: 0 1px 2px rgba(27, 28, 30, 0.05);
+              --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+              --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+            }
+
+            * { box-sizing: border-box; }
+            html { color-scheme: light; }
+            body {
+              margin: 0;
+              background: var(--bg);
+              color: var(--text-primary);
+              font-family: var(--font-body);
+              font-size: 15px;
+              line-height: 1.6;
+              -webkit-font-smoothing: antialiased;
+            }
+            a { color: inherit; }
+            .page {
+              max-width: 1180px;
+              margin: 0 auto;
+              padding: clamp(24px, 4vw, 56px) clamp(16px, 4vw, 32px) 64px;
+              display: flex;
+              flex-direction: column;
+              gap: clamp(28px, 4vw, 44px);
+            }
+
+            .masthead {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              gap: 24px;
+              flex-wrap: wrap;
+              border-bottom: 1px solid var(--border);
+              padding-bottom: 24px;
+            }
+            .eyebrow {
+              font-family: var(--font-display);
+              font-size: 0.75rem;
+              font-weight: 600;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              color: var(--accent);
+              margin: 0 0 10px;
+            }
+            .masthead h1 {
+              font-family: var(--font-display);
+              font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.375rem);
+              font-weight: 600;
+              letter-spacing: -0.02em;
+              line-height: 1.1;
+              margin: 0 0 10px;
+              text-wrap: balance;
+            }
+            .masthead-sub {
+              margin: 0;
+              max-width: 52ch;
+              color: var(--text-secondary);
+              font-size: 0.9375rem;
+            }
+            .masthead-sub a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+            .masthead-meta {
+              text-align: right;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+            }
+            .meta-label {
+              font-family: var(--font-display);
+              font-size: 0.6875rem;
+              font-weight: 600;
+              letter-spacing: 0.06em;
+              text-transform: uppercase;
+              color: var(--text-tertiary);
+            }
+            .meta-value {
+              font-variant-numeric: tabular-nums;
+              font-weight: 600;
+              color: var(--text-primary);
+            }
+
+            .section-head {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 16px;
+              flex-wrap: wrap;
+              margin-bottom: 16px;
+            }
+            .section-head h2 {
+              font-family: var(--font-display);
+              font-size: 1.125rem;
+              font-weight: 600;
+              margin: 0;
+            }
+            .section-date {
+              font-variant-numeric: tabular-nums;
+              color: var(--text-secondary);
+              font-size: 0.875rem;
+            }
+
+            .latest-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+            }
+            .latest-card {
+              background: var(--surface);
+              border: 1px solid var(--border);
+              border-radius: var(--radius);
+              padding: 22px 24px 20px;
+              box-shadow: var(--shadow-sm);
+              animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            .latest-card:nth-of-type(2) { animation-delay: 0.06s; }
+            .latest-card-head {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 18px;
+            }
+            .device {
+              display: inline-flex;
+              align-items: center;
+              gap: 7px;
+              font-family: var(--font-display);
+              font-weight: 600;
+              font-size: 0.9375rem;
+            }
+            .device .icon { color: var(--accent); }
+            .pill {
+              font-family: var(--font-display);
+              font-size: 0.6875rem;
+              font-weight: 600;
+              letter-spacing: 0.04em;
+              text-transform: uppercase;
+              padding: 4px 10px;
+              border-radius: 999px;
+            }
+            .pill-latest { background: var(--accent-soft); color: var(--accent); }
+            .pill-sm { padding: 2px 8px; font-size: 0.625rem; margin-left: 8px; }
+
+            .score-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 14px;
+              margin-bottom: 18px;
+            }
+            .score-block {
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
+              padding: 12px 4px 12px 14px;
+              border-left: 3px solid var(--border-strong);
+            }
+            .score-block.score-good { border-left-color: var(--good); }
+            .score-block.score-average { border-left-color: var(--average); }
+            .score-block.score-poor { border-left-color: var(--poor); }
+            .score-num {
+              font-family: var(--font-body);
+              font-variant-numeric: tabular-nums;
+              font-weight: 700;
+              font-size: 1.625rem;
+              line-height: 1;
+            }
+            .score-block.score-good .score-num { color: var(--good); }
+            .score-block.score-average .score-num { color: var(--average); }
+            .score-block.score-poor .score-num { color: var(--poor); }
+            .score-name {
+              font-size: 0.75rem;
+              color: var(--text-secondary);
+            }
+            .delta {
+              font-size: 0.6875rem;
+              font-weight: 600;
+              font-variant-numeric: tabular-nums;
+              margin-top: 2px;
+            }
+            .delta-up { color: var(--good); }
+            .delta-down { color: var(--poor); }
+            .delta-flat { color: var(--text-tertiary); font-weight: 500; }
+
+            .latest-card-foot {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding-top: 14px;
+              border-top: 1px solid var(--border);
+            }
+            .latest-size {
+              font-size: 0.8125rem;
+              color: var(--text-tertiary);
+              font-variant-numeric: tabular-nums;
+            }
+            .latest-link {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 0.875rem;
+              font-weight: 600;
+              color: var(--accent);
+              text-decoration: none;
+            }
+            .latest-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+            .latest-card-empty { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+            .empty-text { color: var(--text-tertiary); font-size: 0.875rem; margin: 0; }
+
+            .stats-strip {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              border-top: 1px solid var(--border);
+              border-bottom: 1px solid var(--border);
+            }
+            .stat {
+              padding: 18px 20px;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+            }
+            .stat:not(:last-child) { border-right: 1px solid var(--border); }
+            .stat-num {
+              font-family: var(--font-display);
+              font-weight: 600;
+              font-size: 1.375rem;
+              font-variant-numeric: tabular-nums;
+            }
+            .stat-label {
+              font-size: 0.8125rem;
+              color: var(--text-secondary);
+            }
+
+            .tabs { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+            .tab {
+              font-family: var(--font-body);
+              font-size: 0.8125rem;
+              font-weight: 600;
+              color: var(--text-secondary);
+              background: transparent;
+              border: none;
+              border-radius: 999px;
+              padding: 7px 16px;
+              cursor: pointer;
+              transition: background 0.2s ease, color 0.2s ease;
+            }
+            .tab:hover { color: var(--text-primary); }
+            .tab.active { background: var(--accent); color: #fff; }
+
+            .table-wrap {
+              border: 1px solid var(--border);
+              border-radius: var(--radius);
+              background: var(--surface);
+              box-shadow: var(--shadow-sm);
+              overflow: auto;
+              max-height: 560px;
+            }
+            table { width: 100%; border-collapse: collapse; min-width: 720px; }
+            thead th {
+              position: sticky;
+              top: 0;
+              background: var(--surface);
+              text-align: left;
+              font-family: var(--font-display);
+              font-size: 0.6875rem;
+              font-weight: 600;
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+              color: var(--text-tertiary);
+              padding: 12px 16px;
+              border-bottom: 1px solid var(--border);
+              white-space: nowrap;
+            }
+            tbody tr { border-bottom: 1px solid var(--border); }
+            tbody tr:last-child { border-bottom: none; }
+            tbody tr:hover { background: #f6f5f2; }
+            tbody tr.row-latest { background: var(--accent-soft); }
+            tbody tr.row-latest:hover { background: var(--accent-soft); }
+            tbody td {
+              padding: 11px 16px;
+              font-size: 0.875rem;
+              white-space: nowrap;
+            }
+            .cell-date { font-variant-numeric: tabular-nums; }
+            .cell-size { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+            .chip {
+              display: inline-block;
+              min-width: 2.4em;
+              text-align: center;
+              font-variant-numeric: tabular-nums;
+              font-weight: 600;
+              font-size: 0.8125rem;
+              padding: 2px 8px;
+              border-radius: var(--radius-sm);
+            }
+            .chip-good { background: var(--good-bg); color: var(--good); }
+            .chip-average { background: var(--average-bg); color: var(--average); }
+            .chip-poor { background: var(--poor-bg); color: var(--poor); }
+            .col-action a {
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              color: var(--accent);
+              font-weight: 600;
+              text-decoration: none;
+              font-size: 0.8125rem;
+            }
+            .col-action a:hover { text-decoration: underline; text-underline-offset: 2px; }
+            .no-reports { text-align: center; padding: 40px 20px; color: var(--text-tertiary); white-space: normal; }
+            tbody tr.hidden { display: none; }
+
+            .page-footer {
+              border-top: 1px solid var(--border);
+              padding-top: 18px;
+              font-size: 0.8125rem;
+              color: var(--text-tertiary);
+            }
+            .page-footer a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+
+            .icon { width: 1em; height: 1em; }
+            .icon-sm { width: 0.9em; height: 0.9em; }
+
+            @media (prefers-reduced-motion: reduce) {
+              .latest-card { animation: none; }
+            }
+            @keyframes rise {
+              from { opacity: 0; transform: translateY(8px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+
+            @media (max-width: 768px) {
+              .latest-grid { grid-template-columns: 1fr; }
+              .stats-strip { grid-template-columns: 1fr; }
+              .stat:not(:last-child) { border-right: none; border-bottom: 1px solid var(--border); }
+              .masthead { align-items: flex-start; }
+              .masthead-meta { text-align: left; }
+              .score-grid { grid-template-columns: repeat(2, 1fr); }
+            }
+          </style>
           </head>
           <body>
-            <div class="container">
-              <h1>📊 Lighthouse Performance Reports</h1>
-              <h2>NIDA.AC.TH - Weekly Monitoring</h2>
-              
-              <div class="stats">
-                <div class="stat-card">
-                  <div class="stat-number">TOTAL_REPORTS_PLACEHOLDER</div>
-                  <div class="stat-label">Total Reports</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-number">MOBILE_COUNT_PLACEHOLDER</div>
-                  <div class="stat-label">Mobile Reports</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-number">DESKTOP_COUNT_PLACEHOLDER</div>
-                  <div class="stat-label">Desktop Reports</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-number">LATEST_DATE_PLACEHOLDER</div>
-                  <div class="stat-label">Latest Report</div>
+          <svg style="display:none" aria-hidden="true">
+            <symbol id="icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7" y="2.5" width="10" height="19" rx="2"></rect>
+              <line x1="11" y1="18.2" x2="13" y2="18.2"></line>
+            </symbol>
+            <symbol id="icon-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="4" width="19" height="13" rx="1.5"></rect>
+              <line x1="8.5" y1="21" x2="15.5" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </symbol>
+            <symbol id="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7"></path>
+              <path d="M9 7H17V15"></path>
+            </symbol>
+          </svg>
+
+          <div class="page">
+            <header class="masthead">
+              <div class="masthead-text">
+                <p class="eyebrow">Performance Monitoring</p>
+                <h1>Lighthouse Reports</h1>
+                <p class="masthead-sub">Automated weekly audits of <a href="TARGET_URL_PLACEHOLDER" target="_blank" rel="noopener">TARGET_HOST_PLACEHOLDER</a> across performance, accessibility, best practices, and SEO.</p>
+              </div>
+              <div class="masthead-meta">
+                <span class="meta-label">Last updated</span>
+                <span class="meta-value">LAST_UPDATED_PLACEHOLDER</span>
+              </div>
+            </header>
+
+            <section class="latest" aria-labelledby="latest-heading">
+              <div class="section-head">
+                <h2 id="latest-heading">Latest Scan</h2>
+                <span class="section-date">LATEST_DATE_PLACEHOLDER</span>
+              </div>
+              <div class="latest-grid">
+                LATEST_MOBILE_CARD_PLACEHOLDER
+                LATEST_DESKTOP_CARD_PLACEHOLDER
+              </div>
+            </section>
+
+            <section class="stats-strip" aria-label="Summary">
+              <div class="stat">
+                <span class="stat-num">TOTAL_REPORTS_PLACEHOLDER</span>
+                <span class="stat-label">Total reports archived</span>
+              </div>
+              <div class="stat">
+                <span class="stat-num">FIRST_DATE_PLACEHOLDER</span>
+                <span class="stat-label">Monitoring since</span>
+              </div>
+              <div class="stat">
+                <span class="stat-num">Weekly</span>
+                <span class="stat-label">Scan cadence · Mondays, 09:00 ICT</span>
+              </div>
+            </section>
+
+            <section class="history" aria-labelledby="history-heading">
+              <div class="section-head">
+                <h2 id="history-heading">Report History</h2>
+                <div class="tabs" role="tablist">
+                  <button class="tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+                  <button class="tab" data-filter="mobile" role="tab" aria-selected="false">Mobile</button>
+                  <button class="tab" data-filter="desktop" role="tab" aria-selected="false">Desktop</button>
                 </div>
               </div>
-              
-              <div class="filter-tabs">
-                <button class="filter-btn active" onclick="filterReports('all')">All Reports</button>
-                <button class="filter-btn" onclick="filterReports('mobile')">📱 Mobile Only</button>
-                <button class="filter-btn" onclick="filterReports('desktop')">💻 Desktop Only</button>
-              </div>
-              
-              <div class="reports-table">
+              <div class="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>📅 Date</th>
-                      <th>🌐 URL</th>
-                      <th>📱 Device</th>
-                      <th>📄 File Size</th>
-                      <th>🔗 Action</th>
+                      <th>Date</th>
+                      <th>Device</th>
+                      <th>Performance</th>
+                      <th>Accessibility</th>
+                      <th>Best Practices</th>
+                      <th>SEO</th>
+                      <th>Size</th>
+                      <th class="col-action">Report</th>
                     </tr>
                   </thead>
-                  <tbody id="reports-body">
+                  <tbody id="history-body">
                     TABLE_ROWS_PLACEHOLDER
                   </tbody>
                 </table>
               </div>
-              
-              <div class="last-updated">
-                Last updated: LAST_UPDATED_PLACEHOLDER
-              </div>
-            </div>
-            
-            <script>
-              function filterReports(type) {
-                const rows = document.querySelectorAll('#reports-body tr');
-                const buttons = document.querySelectorAll('.filter-btn');
-                
-                // Update button states
-                buttons.forEach(btn => btn.classList.remove('active'));
-                event.target.classList.add('active');
-                
-                // Filter rows
-                rows.forEach(row => {
-                  if (type === 'all') {
-                    row.classList.remove('hidden');
-                  } else {
-                    const badge = row.querySelector('.badge');
-                    if (badge) {
-                      if (badge.classList.contains(type)) {
-                        row.classList.remove('hidden');
-                      } else {
-                        row.classList.add('hidden');
-                      }
+            </section>
+
+            <footer class="page-footer">
+              <p>Generated automatically every Monday via GitHub Actions from live Lighthouse audits. <a href="https://github.com/natthasath/nida-seo-lighthouse" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+            </footer>
+          </div>
+
+          <script>
+            (function () {
+              var tabs = document.querySelectorAll('.tab');
+              var rows = document.querySelectorAll('#history-body tr[data-device]');
+              tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                  tabs.forEach(function (t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+                  tab.classList.add('active');
+                  tab.setAttribute('aria-selected', 'true');
+                  var filter = tab.getAttribute('data-filter');
+                  rows.forEach(function (row) {
+                    if (filter === 'all' || row.getAttribute('data-device') === filter) {
+                      row.classList.remove('hidden');
+                    } else {
+                      row.classList.add('hidden');
                     }
-                  }
+                  });
                 });
-              }
-            </script>
+              });
+            })();
+          </script>
           </body>
           </html>
-          EOF
-          
-          # แทนที่ placeholders
-          sed -i "s/TOTAL_REPORTS_PLACEHOLDER/$TOTAL_REPORTS/g" index.html
-          sed -i "s/MOBILE_COUNT_PLACEHOLDER/$MOBILE_COUNT/g" index.html
-          sed -i "s/DESKTOP_COUNT_PLACEHOLDER/$DESKTOP_COUNT/g" index.html
-          sed -i "s/LATEST_DATE_PLACEHOLDER/$LATEST_DATE/g" index.html
-          sed -i "s|TABLE_ROWS_PLACEHOLDER|$ALL_ROWS|g" index.html
-          sed -i "s/LAST_UPDATED_PLACEHOLDER/$(date "+%B %d, %Y at %H:%M UTC")/g" index.html
-          
+          HTMLEOF
+
+          sed \
+            -e "s|TARGET_URL_PLACEHOLDER|$TARGET_URL|g" \
+            -e "s|TARGET_HOST_PLACEHOLDER|$TARGET_HOST|g" \
+            -e "s|LAST_UPDATED_PLACEHOLDER|$LAST_UPDATED|g" \
+            -e "s|LATEST_DATE_PLACEHOLDER|$LATEST_DATE_FMT|g" \
+            -e "s|FIRST_DATE_PLACEHOLDER|$FIRST_DATE_FMT|g" \
+            -e "s|TOTAL_REPORTS_PLACEHOLDER|$TOTAL_REPORTS|g" \
+            -e "s|LATEST_MOBILE_CARD_PLACEHOLDER|$LATEST_MOBILE_CARD|g" \
+            -e "s|LATEST_DESKTOP_CARD_PLACEHOLDER|$LATEST_DESKTOP_CARD|g" \
+            -e "s|TABLE_ROWS_PLACEHOLDER|$ALL_ROWS|g" \
+            index_template.html > index.html
+
+          rm index_template.html
           echo "✅ Static index page created"
-          
+
       - name: Commit and Push Report
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
+
           git add report/ index.html reports.json
-          
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
@@ -473,7 +765,7 @@ jobs:
             git commit -m "📊 Add weekly Lighthouse report (Mobile + Desktop) for ${REPORT_DATE}"
             git push
           fi
-          
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
