@@ -86,4 +86,4 @@ on:
 
 ### 📜 License
 
-MIT © Natthasath Saksupanara — see [LICENSE](LICENSE)
+MIT © 2023 Natthasath Saksupanara — see [LICENSE](LICENSE)
