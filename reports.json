@@ -223,6 +223,14 @@
       "size": "851 KB",
       "scores": { "performance": 71, "accessibility": 83, "bestPractices": 96, "seo": 92 }
     }
+,
+    {
+      "filename": "2026-08-17_lighthouse-report.html",
+      "date": "2026-08-17",
+      "url": "nida.ac.th",
+      "size": "941 KB",
+      "scores": { "performance": 70, "accessibility": 83, "bestPractices": 96, "seo": 92 }
+    }
   ],
   "desktop": [
     {
@@ -447,6 +455,14 @@
       "url": "nida.ac.th",
       "size": "1341 KB",
       "scores": { "performance": 93, "accessibility": 83, "bestPractices": 96, "seo": 92 }
+    }
+,
+    {
+      "filename": "2026-08-17_lighthouse-report.html",
+      "date": "2026-08-17",
+      "url": "nida.ac.th",
+      "size": "1284 KB",
+      "scores": { "performance": 98, "accessibility": 83, "bestPractices": 96, "seo": 92 }
     }
   ]
 }
